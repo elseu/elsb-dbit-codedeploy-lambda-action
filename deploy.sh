@@ -7,12 +7,12 @@ export PACKAGE_S3_KEY=$INPUT_PACKAGE_S3_KEY
 export FUNCTION_NAME=$INPUT_FUNCTION_NAME
 export ALIAS=$INPUT_ALIAS
 
+echo "Getting the current version of the function"
+CURRENT_FUNCTION_VERSION=$(aws lambda get-function-configuration --function-name $FUNCTION_NAME  jq '.Version')
 echo "Updating the function code"
 aws lambda update-function-code --function-name $FUNCTION_NAME --s3-bucket $PACKAGE_S3_BUCKET --s3-key $PACKAGE_S3_KEY
 echo "Publishing a new version of the function and getting the new version id"
-FUNCTION_VERSION=$(aws lambda publish-version --function-name $FUNCTION_NAME | jq '.Version')
-echo "Getting the version_id currently associated with the given alias"
-FUNCTION_ALIAS_VERSION=$(aws lambda get-alias --function-name $FUNCTION_NAME --name "$ALIAS" | jq '.FunctionVersion')
+NEW_FUNCTION_VERSION=$(aws lambda publish-version --function-name $FUNCTION_NAME | jq '.Version')
 
 echo "Create AppSpec.json"
 FILE_CONTENT="{'version': '0.0',
@@ -22,7 +22,8 @@ FILE_CONTENT="{'version': '0.0',
     'Properties': {
       'Name': '${FUNCTION_NAME}',
       'Alias': '${ALIAS}',
-      'TargetVersion': ${FUNCTION_ALIAS_VERSION}
+      'CurrentVersion': ${CURRENT_FUNCTION_VERSION},
+      'TargetVersion': ${NEW_FUNCTION_VERSION}
     }
   }
 }],
