@@ -9,7 +9,7 @@ export ALIAS=$INPUT_ALIAS
 
 echo "Getting the bigger numeric version + CodeSha256"
 LATEST_FUNCTION_VERSION=$(aws lambda list-versions-by-function --function-name $FUNCTION_NAME --no-paginate \
-  --query "max_by(Versions, &to_number(to_number(Version) || '0'))")
+  --query "max_by(Versions, &to_number(to_number(Version) || '0'))" | jq '.Version')
 CURRENT_FUNCTION_SHA=$(aws lambda get-function-configuration --function-name $FUNCTION_NAME \
   --qualifier $LATEST_FUNCTION_VERSION --query "CodeSha256")
 echo "Updating the function code"
