@@ -21,9 +21,9 @@ inputs:
     description: "The function name/ARN to update"
     required: true
   alias:
-    description: "The alias to place on the deployed version (default: Live)"
+    description: "The alias to place on the deployed version (default: Live). Alias have to pre-exist"
     default: "Live"
-    required: false
+    required: true
 runs:
   using: docker
   image: Dockerfile

@@ -7,12 +7,11 @@ export PACKAGE_S3_KEY=$INPUT_PACKAGE_S3_KEY
 export FUNCTION_NAME=$INPUT_FUNCTION_NAME
 export ALIAS=$INPUT_ALIAS
 
-
-
 echo "Getting the current version associated to the alias + CodeSha256"
 CURRENT_FUNCTION_VERSION=$(aws lambda get-alias --function-name $FUNCTION_NAME --name $ALIAS | jq '.FunctionVersion' | sed 's/"//g' )
 CURRENT_FUNCTION_SHA=$(aws lambda get-function-configuration --function-name $FUNCTION_NAME \
   --qualifier $CURRENT_FUNCTION_VERSION --query "CodeSha256")
+echo "Current SHA256: ${CURRENT_FUNCTION_SHA}"
 echo "Updating the function code"
 UPDATE_RESULT=$(aws lambda update-function-code --function-name $FUNCTION_NAME --s3-bucket $PACKAGE_S3_BUCKET --s3-key $PACKAGE_S3_KEY)
 UPDATE_STATUS=$(echo $UPDATE_RESULT | jq '.LastUpdateStatus' | sed 's/"//g')
@@ -21,6 +20,7 @@ if [ $UPDATE_STATUS != "Successful" ]; then
   exit 1
 fi
 FUNCTION_SHA=$(echo $UPDATE_RESULT | jq '.CodeSha256')
+echo "New SHA256: ${FUNCTION_SHA}"
 if [[ $CURRENT_FUNCTION_SHA == $FUNCTION_SHA ]]; then
   echo "Same function code, skipping"
   exit 0
