@@ -30,11 +30,14 @@ FILE_CONTENT="{'version': '0.0',
 'Hooks': []
 }"
 echo $FILE_CONTENT | sed "s/'/\"/g" > AppSpec.json
+cat AppSpec.json
 
-aws s3 cp AppSpec.json s3://${PACKAGE_S3_BUCKET}/${PACKAGE_S3_KEY}_AppSpec.json
+TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
+SPEC_FILENAME=${PACKAGE_S3_KEY}_${TIMESTAMP}_AppSpec.json
+aws s3 cp AppSpec.json s3://${PACKAGE_S3_BUCKET}/${SPEC_FILENAME}
 
 deployId=$(aws deploy create-deployment --application-name $APP_NAME --deployment-group-name $DEPLOYMENT_GROUP \
-    --s3-location bucket=${PACKAGE_S3_BUCKET},key=${PACKAGE_S3_KEY}_AppSpec.json,bundleType=json \
+    --s3-location bucket=${PACKAGE_S3_BUCKET},key=${SPEC_FILENAME},bundleType=json \
     --output text --query deploymentId)
 echo "Deployment ID: $deployId"
 aws deploy wait deployment-successful --deployment-id $deployId
