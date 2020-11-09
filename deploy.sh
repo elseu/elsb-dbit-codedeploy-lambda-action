@@ -22,8 +22,8 @@ FILE_CONTENT="{'version': '0.0',
     'Properties': {
       'Name': '${FUNCTION_NAME}',
       'Alias': '${ALIAS}',
-      'CurrentVersion': '${FUNCTION_VERSION}',
-      'TargetVersion': '${FUNCTION_ALIAS_VERSION}'
+      'CurrentVersion': ${FUNCTION_VERSION},
+      'TargetVersion': ${FUNCTION_ALIAS_VERSION}
     }
   }
 }],
