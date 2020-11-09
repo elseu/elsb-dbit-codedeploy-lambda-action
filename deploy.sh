@@ -10,7 +10,7 @@ export ALIAS=$INPUT_ALIAS
 
 
 echo "Getting the current version associated to the alias + CodeSha256"
-CURRENT_FUNCTION_VERSION=$(aws lambda get-alias --function-name $FUNCTION_NAME --name $ALIAS | jq '.Version' | sed 's/"//g' )
+CURRENT_FUNCTION_VERSION=$(aws lambda get-alias --function-name $FUNCTION_NAME --name $ALIAS | jq '.FunctionVersion' | sed 's/"//g' )
 CURRENT_FUNCTION_SHA=$(aws lambda get-function-configuration --function-name $FUNCTION_NAME \
   --qualifier $CURRENT_FUNCTION_VERSION --query "CodeSha256")
 echo "Updating the function code"
