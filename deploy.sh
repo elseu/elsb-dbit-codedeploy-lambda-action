@@ -8,7 +8,7 @@ export FUNCTION_NAME=$INPUT_FUNCTION_NAME
 export ALIAS=$INPUT_ALIAS
 
 echo "Getting the current version of the function"
-CURRENT_FUNCTION_VERSION=$(aws lambda get-function-configuration --function-name $FUNCTION_NAME  jq '.Version')
+CURRENT_FUNCTION_VERSION=$(aws lambda get-function-configuration --function-name $FUNCTION_NAME | jq '.Version')
 echo "Updating the function code"
 aws lambda update-function-code --function-name $FUNCTION_NAME --s3-bucket $PACKAGE_S3_BUCKET --s3-key $PACKAGE_S3_KEY
 echo "Publishing a new version of the function and getting the new version id"
