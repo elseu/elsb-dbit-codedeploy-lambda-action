@@ -15,21 +15,21 @@ echo "Getting the version_id currently associated with the given alias"
 FUNCTION_ALIAS_VERSION=$(aws lambda get-alias --function-name $FUNCTION_NAME --name "$ALIAS" | jq '.FunctionVersion')
 
 echo "Create AppSpec.json"
-FILE_CONTENT='{"version": 0.0,
-"Resources": [{
-  "$FUNCTION_NAME": {
-    "Type": "AWS::Lambda::Function",
-    "Properties": {
-      "Name": "$FUNCTION_NAME",
-      "Alias": "$ALIAS",
-      "CurrentVersion": $FUNCTION_VERSION,
-      "TargetVersion": $FUNCTION_ALIAS_VERSION
+FILE_CONTENT="{'version': '0.0',
+'Resources': [{
+  '${FUNCTION_NAME}': {
+    'Type': 'AWS::Lambda::Function',
+    'Properties': {
+      'Name': '${FUNCTION_NAME}',
+      'Alias': '${ALIAS}',
+      'CurrentVersion': '${FUNCTION_VERSION}',
+      'TargetVersion': '${FUNCTION_ALIAS_VERSION}'
     }
   }
 }],
-"Hooks": []
-}'
-echo $FILE_CONTENT > AppSpec.json
+'Hooks': []
+}"
+echo $FILE_CONTENT | sed "s/'/\"/g" > AppSpec.json
 
 aws s3 cp AppSpec.json s3://${PACKAGE_S3_BUCKET}/${PACKAGE_S3_KEY}_AppSpec.json
 
