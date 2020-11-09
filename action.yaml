@@ -1,0 +1,29 @@
+name: "CodeDeploy Lambda"
+description: "Deploy lambda code store on S3 using CodeDeploy"
+author: elseu
+branding:
+  icon: "terminal"
+  color: "red"
+inputs:
+  app_name:
+    description: "CodeDeploy application name"
+    required: true
+  deployment_group:
+    description: "CodeDeploy deployment group"
+    required: true
+  package_s3_bucket:
+    description: "The S3 bucket name where the application zip has been stored for CodeDeploy to retrieve it"
+    required: true
+  package_s3_key:
+    description: "The path of the application zip inside the package_s3_bucket"
+    required: true
+  function_name:
+    description: "The function name/ARN to update"
+    required: true
+  alias:
+    description: "The alias to place on the deployed version (default: Live)"
+    default: "Live"
+    required: false
+runs:
+  using: docker
+  image: Dockerfile
