@@ -29,7 +29,7 @@ FILE_CONTENT='{"version": 0.0,
 }],
 "Hooks": []
 }'
-echp $FILE_CONTENT > AppSpec.json
+echo $FILE_CONTENT > AppSpec.json
 
 aws s3 cp AppSpec.json s3://${PACKAGE_S3_BUCKET}/${PACKAGE_S3_KEY}_AppSpec.json
 
