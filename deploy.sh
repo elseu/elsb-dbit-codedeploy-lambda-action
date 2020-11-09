@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 export APP_NAME=$INPUT_APP_NAME
 export DEPLOYMENT_GROUP=$INPUT_DEPLOYMENT_GROUP
@@ -9,14 +9,14 @@ export ALIAS=$INPUT_ALIAS
 
 echo "Getting the bigger numeric version + CodeSha256"
 LATEST_FUNCTION_VERSION=$(aws lambda list-versions-by-function --function-name $FUNCTION_NAME --no-paginate \
-  --query "max_by(Versions, &to_number(to_number(Version) || '0'))" | jq '.Version')
+  --query "max_by(Versions, &to_number(to_number(Version) || '0'))" | jq '.Version' | sed 's/"//g' )
 CURRENT_FUNCTION_SHA=$(aws lambda get-function-configuration --function-name $FUNCTION_NAME \
   --qualifier $LATEST_FUNCTION_VERSION --query "CodeSha256")
 echo "Updating the function code"
 UPDATE_RESULT=$(aws lambda update-function-code --function-name $FUNCTION_NAME --s3-bucket $PACKAGE_S3_BUCKET --s3-key $PACKAGE_S3_KEY)
 UPDATE_STATUS=$(echo $UPDATE_RESULT | jq '.LastUpdateStatus')
-if [[ $UPDATE_STATUS != "Successful" ]]; then
-  echo "Function update failed"
+if [[ "$UPDATE_STATUS" != "Successful" ]]; then
+  echo "Function update failed: ${UPDATE_STATUS}"
   echo $UPDATE_RESULT
   exit 1
 fi
