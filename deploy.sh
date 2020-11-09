@@ -7,11 +7,12 @@ export PACKAGE_S3_KEY=$INPUT_PACKAGE_S3_KEY
 export FUNCTION_NAME=$INPUT_FUNCTION_NAME
 export ALIAS=$INPUT_ALIAS
 
-echo "Getting the bigger numeric version + CodeSha256"
-LATEST_FUNCTION_VERSION=$(aws lambda list-versions-by-function --function-name $FUNCTION_NAME --no-paginate \
-  --query "max_by(Versions, &to_number(to_number(Version) || '0'))" | jq '.Version' | sed 's/"//g' )
+
+
+echo "Getting the current version associated to the alias + CodeSha256"
+CURRENT_FUNCTION_VERSION=$(aws lambda get-alias --function-name $FUNCTION_NAME --name $ALIAS | jq '.Version' | sed 's/"//g' )
 CURRENT_FUNCTION_SHA=$(aws lambda get-function-configuration --function-name $FUNCTION_NAME \
-  --qualifier $LATEST_FUNCTION_VERSION --query "CodeSha256")
+  --qualifier $CURRENT_FUNCTION_VERSION --query "CodeSha256")
 echo "Updating the function code"
 UPDATE_RESULT=$(aws lambda update-function-code --function-name $FUNCTION_NAME --s3-bucket $PACKAGE_S3_BUCKET --s3-key $PACKAGE_S3_KEY)
 UPDATE_STATUS=$(echo $UPDATE_RESULT | jq '.LastUpdateStatus' | sed 's/"//g')
@@ -36,7 +37,7 @@ FILE_CONTENT="{'version': '0.0',
     'Properties': {
       'Name': '${FUNCTION_NAME}',
       'Alias': '${ALIAS}',
-      'CurrentVersion': ${LATEST_FUNCTION_VERSION},
+      'CurrentVersion': ${CURRENT_FUNCTION_VERSION},
       'TargetVersion': ${NEW_FUNCTION_VERSION}
     }
   }
