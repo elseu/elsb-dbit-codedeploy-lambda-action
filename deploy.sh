@@ -14,17 +14,16 @@ CURRENT_FUNCTION_SHA=$(aws lambda get-function-configuration --function-name $FU
   --qualifier $LATEST_FUNCTION_VERSION --query "CodeSha256")
 echo "Updating the function code"
 UPDATE_RESULT=$(aws lambda update-function-code --function-name $FUNCTION_NAME --s3-bucket $PACKAGE_S3_BUCKET --s3-key $PACKAGE_S3_KEY)
-UPDATE_STATUS=$(echo $UPDATE_RESULT | jq '.LastUpdateStatus')
-if [[ "$UPDATE_STATUS" != "Successful" ]]; then
-  echo "Function update failed: ${UPDATE_STATUS}"
-  echo $UPDATE_RESULT
+UPDATE_STATUS=$(echo $UPDATE_RESULT | jq '.LastUpdateStatus' | sed 's/"//g')
+if [ $UPDATE_STATUS != "Successful" ]; then
+  echo "Function update failed: ${UPDATE_RESULT}"
   exit 1
 fi
-#FUNCTION_SHA=$(echo $UPDATE_RESULT | jq '.CodeSha256')
-#if [[ $CURRENT_FUNCTION_SHA == $FUNCTION_SHA ]]; then
-#  echo "Same function code, skipping"
-#  exit 0
-#fi
+FUNCTION_SHA=$(echo $UPDATE_RESULT | jq '.CodeSha256')
+if [[ $CURRENT_FUNCTION_SHA == $FUNCTION_SHA ]]; then
+  echo "Same function code, skipping"
+  exit 0
+fi
 
 echo "Publishing a new version of the function and getting the new version id"
 NEW_FUNCTION_VERSION=$(aws lambda publish-version --function-name $FUNCTION_NAME --query "Version")
