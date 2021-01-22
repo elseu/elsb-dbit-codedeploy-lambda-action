@@ -1,7 +1,9 @@
 FROM python:3.8-alpine
 
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt /requirements.txt
 
-COPY . .
+RUN pip install --no-cache-dir -r /requirements.txt
 
-CMD [ "python", "./deploy.py" ]
+COPY deploy.py /deploy.py
+
+CMD [ "python", "/deploy.py" ]

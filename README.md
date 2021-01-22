@@ -13,7 +13,7 @@ This action will:
     deploy:
      runs-on: ubuntu-latest
      steps:
-       - uses: elseu/elsb-dbit-codedeploy-lambda-action@v0
+       - uses: elseu/elsb-dbit-codedeploy-lambda-action@v1
          with:
            app_name: <Code Deploy application name>
            deployment_group: <Code Deploy deployment group>
