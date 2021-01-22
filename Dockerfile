@@ -1,8 +1,7 @@
-FROM amazon/aws-cli
+FROM python:3.8-alpine
 
-RUN yum install -y jq
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY deploy.sh /deploy.sh
-RUN chmod +x /deploy.sh
+COPY . .
 
-ENTRYPOINT [ "/deploy.sh" ]
+CMD [ "python", "./deploy.py" ]
