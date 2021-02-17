@@ -10,10 +10,6 @@ packages_s3_bucket = os.environ['INPUT_PACKAGE_S3_BUCKET']
 packages_s3_key = os.environ['INPUT_PACKAGE_S3_KEY']
 function_name = os.environ['INPUT_FUNCTION_NAME']
 input_alias = os.environ['INPUT_ALIAS']
-layer1_arn = os.environ['LAYER1_ARN']
-layer2_arn = os.environ['LAYER2_ARN']
-layer3_arn = os.environ['LAYER3_ARN']
-layer4_arn = os.environ['LAYER4_ARN']
 
 lambda_svc = boto3.client('lambda')
 s3_svc = boto3.client('s3')
@@ -77,6 +73,19 @@ def get_layers_list(layer_configuration):
     for layer in layer_configuration:
         layer_list.append(layer["Arn"])
     return list_to_csv(layer_list)
+
+
+def get_env_var(var_name):
+    if var_name in os.environ:
+        return os.environ[var_name]
+    else:
+        return None
+
+
+layer1_arn = get_env_var('LAYER1_ARN')
+layer2_arn = get_env_var('LAYER2_ARN')
+layer3_arn = get_env_var('LAYER3_ARN')
+layer4_arn = get_env_var('LAYER4_ARN')
 
 
 # CodeDeploy needs a function alias. Checking if the alias passed as input parameter exists and get the
