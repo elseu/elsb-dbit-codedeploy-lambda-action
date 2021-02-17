@@ -21,4 +21,8 @@ This action will:
            package_s3_key: <Package S3 key (full path)>
            function_name: <Lambda function name or ARN>
            alias: <Alias to associate with the published version>
+           layer1_arn: <The ARN of a pre-existing layer version to associate to the function (level=1)>
+           layer2_arn: <The ARN of a pre-existing layer version to associate to the function (level=2)>
+           layer3_arn: <The ARN of a pre-existing layer version to associate to the function (level=3)>
+           layer4_arn: <The ARN of a pre-existing layer version to associate to the function (level=4)>
 ```

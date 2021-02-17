@@ -10,12 +10,20 @@ packages_s3_bucket = os.environ['INPUT_PACKAGE_S3_BUCKET']
 packages_s3_key = os.environ['INPUT_PACKAGE_S3_KEY']
 function_name = os.environ['INPUT_FUNCTION_NAME']
 input_alias = os.environ['INPUT_ALIAS']
+layer1_arn = os.environ['LAYER1_ARN']
+layer2_arn = os.environ['LAYER2_ARN']
+layer3_arn = os.environ['LAYER3_ARN']
+layer4_arn = os.environ['LAYER4_ARN']
 
 lambda_svc = boto3.client('lambda')
 s3_svc = boto3.client('s3')
 codedeploy_svc = boto3.client('codedeploy')
+new_layers_list = old_layers_list = []
+needs_deployment = False
 
 def get_latest_version_number(my_function_name, sha256):
+    latest_version = None
+
     try:
         versions_response = lambda_svc.list_versions_by_function(FunctionName=my_function_name)
         versions = versions_response["Versions"]
@@ -31,9 +39,8 @@ def get_latest_version_number(my_function_name, sha256):
             # Unfortunately, returns $LATEST instead of 1. Should list again so value fixed const
             if version_id == "$LATEST":
                 version_id = 1
-            #version_arn = publish_version_response["FunctionArn"] + ":1"
-            #return version_arn
-            return version_id
+            latest_version = version_id
+            old_layers_list = get_layers_list(publish_version_response["Layers"])
         except botocore.exceptions.ClientError as e:
             raise e
     else:
@@ -45,11 +52,31 @@ def get_latest_version_number(my_function_name, sha256):
             if version["CodeSha256"] == sha256:
                 last_matching_version = version["Version"]
                 print("Found matching version: " + version["Version"])
+                old_layers_list = get_layers_list(version["Layers"])
         if last_matching_version:
             print("Last matching version: " + last_matching_version)
-            return last_matching_version
-        else:
-            return None
+            latest_version = last_matching_version
+
+    return latest_version
+
+
+def list_to_csv(my_list):
+    new_list = []
+    for item in my_list:
+        parsed_item = item.strip()
+        parsed_item = parsed_item.strip('"')
+        parsed_item = parsed_item.strip("'")
+        parsed_item = "'" + parsed_item + "'"
+
+        new_list.append(parsed_item)
+    return ','.join(new_list)
+
+
+def get_layers_list(layer_configuration):
+    layer_list = []
+    for layer in layer_configuration:
+        layer_list.append(layer["Arn"])
+    return list_to_csv(layer_list)
 
 
 # CodeDeploy needs a function alias. Checking if the alias passed as input parameter exists and get the
@@ -122,6 +149,43 @@ print("New version: " + new_function_version)
 print("New SHA256: " + new_function_sha256)
 
 if current_function_version != new_function_version:
+    needs_deployment = True
+
+print("Checking the function layers")
+# Manage layers
+if layer1_arn != "":
+    new_layers_list.append(layer1_arn)
+if layer2_arn != "":
+    new_layers_list.append(layer2_arn)
+if layer3_arn != "":
+    new_layers_list.append(layer3_arn)
+if layer4_arn != "":
+    new_layers_list.append(layer4_arn)
+
+print("Previous layers list: " + old_layers_list)
+print("New layers list: " + new_layers_list)
+
+# The lists order is important
+if old_layers_list != new_layers_list:
+    needs_deployment = True
+    # Update function configuration
+    print("Updating the function layers")
+    try:
+        update_response = lambda_svc.update_function_configuration(
+            FunctionName=function_name,
+            Layers=list_to_csv(new_layers_list)
+        )
+        update_status = update_response["LastUpdateStatus"]
+        if update_status == "Failed":
+            raise RuntimeError("Function update failed: " + update_status)
+        else:
+            new_function_version = update_response["Version"]
+            print("New version: " + new_function_version)
+
+    except botocore.exceptions.ClientError as error:
+        raise error
+
+if needs_deployment:
     # Deploy the new version with code deploy
     print("Deploying the new version")
 

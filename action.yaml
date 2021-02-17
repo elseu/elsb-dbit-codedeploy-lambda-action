@@ -24,6 +24,18 @@ inputs:
     description: "The alias to place on the deployed version (default: Live). Alias have to pre-exist"
     default: "Live"
     required: true
+  layer1_arn:
+    description: "The ARN of a pre-existing layer version to associate to the function (level=1)"
+    required: false
+  layer1_s3_key:
+    description: "The path to the layer zip to deploy and to associate to the function (level=1)"
+    required: false
+  layer2_arn:
+    description: "The ARN of a pre-existing layer version to associate to the function (level=2)"
+    required: false
+  layer2_s3_key:
+    description: "The path to the layer zip to deploy and to associate to the function (level=2)"
+    required: false
 runs:
   using: docker
   image: Dockerfile
