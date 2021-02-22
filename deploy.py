@@ -1,29 +1,26 @@
 import os
-import botocore
 import boto3
 import hashlib
 
-# Getting the input parameters
-app_name = os.environ['INPUT_APP_NAME']
-deployment_group = os.environ['INPUT_DEPLOYMENT_GROUP']
-packages_s3_bucket = os.environ['INPUT_PACKAGE_S3_BUCKET']
-packages_s3_key = os.environ['INPUT_PACKAGE_S3_KEY']
-function_name = os.environ['INPUT_FUNCTION_NAME']
-input_alias = os.environ['INPUT_ALIAS']
-
 lambda_svc = boto3.client('lambda')
-s3_svc = boto3.client('s3')
-codedeploy_svc = boto3.client('codedeploy')
-new_layers_list = old_layers_list = []
+code_deploy_svc = boto3.client('codedeploy')
+new_layers_list = []
+current_layers_list = []
 needs_deployment = False
 
-def get_latest_version_number(my_function_name, sha256):
+
+def get_latest_version_number(my_function_name, sha256, already_published=False):
     latest_version = None
+    versions = []
+    layers_list = []
 
     try:
-        versions_response = lambda_svc.list_versions_by_function(FunctionName=my_function_name)
-        versions = versions_response["Versions"]
-    except botocore.exceptions.ClientError as e:
+        paginator = lambda_svc.get_paginator('list_versions_by_function')
+        page_iterator = paginator.paginate(FunctionName=my_function_name)
+        for page in page_iterator:
+            versions = versions + page["Versions"]
+
+    except lambda_svc.exceptions.ClientError as e:
         raise e
 
     if len(versions) == 1:
@@ -36,8 +33,8 @@ def get_latest_version_number(my_function_name, sha256):
             if version_id == "$LATEST":
                 version_id = 1
             latest_version = version_id
-            old_layers_list = get_layers_list(publish_version_response["Layers"])
-        except botocore.exceptions.ClientError as e:
+            layers_list = get_layers_list_str(publish_version_response["Layers"])
+        except lambda_svc.exceptions.ClientError as e:
             raise e
     else:
         # We need to compare sha256 values to get the last one with this value.
@@ -48,12 +45,23 @@ def get_latest_version_number(my_function_name, sha256):
             if version["CodeSha256"] == sha256:
                 last_matching_version = version["Version"]
                 print("Found matching version: " + version["Version"])
-                old_layers_list = get_layers_list(version["Layers"])
+                if "Layers" in version:
+                    layers_list = get_layers_list_str(version["Layers"])
         if last_matching_version:
             print("Last matching version: " + last_matching_version)
             latest_version = last_matching_version
+        else:
+            # The current $LATEST version has never been published. Publishing it.
 
-    return latest_version
+            # As it's a recursive call to the same function, we need to avoid loop
+            if not already_published:
+                try:
+                    lambda_svc.publish_version(FunctionName=my_function_name)
+                    latest_version, layers_list = get_latest_version_number(my_function_name, sha256, True)
+                except lambda_svc.exceptions.ClientError as e:
+                    raise e
+
+    return latest_version, layers_list
 
 
 def list_to_csv(my_list):
@@ -68,31 +76,41 @@ def list_to_csv(my_list):
     return ','.join(new_list)
 
 
-def get_layers_list(layer_configuration):
+def get_layers_list_str(layer_configuration):
     layer_list = []
     for layer in layer_configuration:
         layer_list.append(layer["Arn"])
     return list_to_csv(layer_list)
 
 
-def get_env_var(var_name):
+def get_env_var(var_name, required):
     if var_name in os.environ:
         return os.environ[var_name]
     else:
+        if required is True:
+            raise RuntimeError("Required parameter " + var_name + " missing.")
         return None
 
 
-layer1_arn = get_env_var('LAYER1_ARN')
-layer2_arn = get_env_var('LAYER2_ARN')
-layer3_arn = get_env_var('LAYER3_ARN')
-layer4_arn = get_env_var('LAYER4_ARN')
+# Getting the input parameters
+input_alias = get_env_var('INPUT_ALIAS', True)
+app_name = get_env_var('INPUT_APP_NAME', True)
+deployment_group = get_env_var('INPUT_DEPLOYMENT_GROUP', True)
+package_s3_bucket = get_env_var('INPUT_PACKAGE_S3_BUCKET', True)
+package_s3_key = get_env_var('INPUT_PACKAGE_S3_KEY', True)
+function_name = get_env_var('INPUT_FUNCTION_NAME', True)
+layer1_arn = get_env_var('INPUT_LAYER1_ARN', False)
+layer2_arn = get_env_var('INPUT_LAYER2_ARN', False)
+layer3_arn = get_env_var('INPUT_LAYER3_ARN', False)
+layer4_arn = get_env_var('INPUT_LAYER4_ARN', False)
 
 
 # CodeDeploy needs a function alias. Checking if the alias passed as input parameter exists and get the
 # version currently associated to it. If not existing, create it.
 print("Getting the current version associated to the alias + CodeSha256")
 
-current_function_version = current_function_sha256 = None
+current_function_version = None
+current_function_sha256 = None
 
 try:
     alias_response = lambda_svc.get_alias(
@@ -100,10 +118,13 @@ try:
         Name=input_alias
     )
     current_function_version = alias_response['FunctionVersion']
-    current_configuration_response = lambda_svc.get_function_configuration(FunctionName=function_name, Qualifier=current_function_version)
+    current_configuration_response = lambda_svc.get_function_configuration(FunctionName=function_name,
+                                                                           Qualifier=current_function_version)
     current_function_sha256 = current_configuration_response['CodeSha256']
+    if "Layers" in current_configuration_response:
+        current_layers_list = get_layers_list_str(current_configuration_response["Layers"])
 
-except botocore.exceptions.ClientError as error:
+except lambda_svc.exceptions.ClientError as error:
     # The requested alias doesn't exists yet
     if error.response['Error']['Code'] == 'ResourceNotFoundException':
 
@@ -113,11 +134,12 @@ except botocore.exceptions.ClientError as error:
             config_response = lambda_svc.get_function_configuration(FunctionName=function_name)
             current_function_version = config_response['Version']
             current_function_sha256 = config_response['CodeSha256']
-        except botocore.exceptions.ClientError as error:
+        except lambda_svc.exceptions.ClientError as error:
             raise error
 
         if current_function_version == "$LATEST":
-            current_function_version = get_latest_version_number(function_name, current_function_sha256)
+            current_function_version, current_layers_list = get_latest_version_number(function_name,
+                                                                                      current_function_sha256)
             if current_function_version is None:
                 raise RuntimeError("Unable to get an existing numeric version")
         try:
@@ -126,7 +148,7 @@ except botocore.exceptions.ClientError as error:
                 Name=input_alias,
                 FunctionVersion=current_function_version
             )
-        except botocore.exceptions.ClientError as error:
+        except lambda_svc.exceptions.ClientError as error:
             raise error
 
     else:
@@ -135,21 +157,22 @@ except botocore.exceptions.ClientError as error:
 print("Current version: " + current_function_version)
 print("Current SHA256: " + current_function_sha256)
 
-new_function_sha256 = new_function_version = None
+new_function_sha256 = None
+new_function_version = None
 
 print("Updating the function code")
 try:
     update_response = lambda_svc.update_function_code(
         FunctionName=function_name,
-        S3Bucket=packages_s3_bucket,
-        S3Key=packages_s3_key,
+        S3Bucket=package_s3_bucket,
+        S3Key=package_s3_key,
         Publish=True
     )
     update_status = update_response["LastUpdateStatus"]
     if update_status == "Failed":
         raise RuntimeError("Function update failed: " + update_status)
 
-except botocore.exceptions.ClientError as error:
+except lambda_svc.exceptions.ClientError as error:
     raise error
 new_function_sha256 = update_response["CodeSha256"]
 new_function_version = update_response["Version"]
@@ -162,6 +185,7 @@ if current_function_version != new_function_version:
 
 print("Checking the function layers")
 # Manage layers
+
 if layer1_arn != "":
     new_layers_list.append(layer1_arn)
 if layer2_arn != "":
@@ -171,27 +195,25 @@ if layer3_arn != "":
 if layer4_arn != "":
     new_layers_list.append(layer4_arn)
 
-print("Previous layers list: " + old_layers_list)
-print("New layers list: " + new_layers_list)
+print("Previous layers list: " + ','.join(current_layers_list))
+print("New layers list: " + ','.join(new_layers_list))
 
 # The lists order is important
-if old_layers_list != new_layers_list:
+if current_layers_list != new_layers_list:
     needs_deployment = True
     # Update function configuration
     print("Updating the function layers")
     try:
-        update_response = lambda_svc.update_function_configuration(
-            FunctionName=function_name,
-            Layers=list_to_csv(new_layers_list)
-        )
+        update_response = lambda_svc.update_function_configuration(FunctionName=function_name, Layers=new_layers_list)
         update_status = update_response["LastUpdateStatus"]
         if update_status == "Failed":
             raise RuntimeError("Function update failed: " + update_status)
         else:
-            new_function_version = update_response["Version"]
+            new_function_version, new_layers_list = get_latest_version_number(function_name,
+                                                                              update_response["CodeSha256"])
             print("New version: " + new_function_version)
 
-    except botocore.exceptions.ClientError as error:
+    except lambda_svc.exceptions.ClientError as error:
         raise error
 
 if needs_deployment:
@@ -212,7 +234,7 @@ if needs_deployment:
           }
         }]
     }"""
-    deploy_response = codedeploy_svc.create_deployment(
+    deploy_response = code_deploy_svc.create_deployment(
         applicationName=app_name,
         deploymentGroupName=deployment_group,
         revision={
@@ -224,7 +246,7 @@ if needs_deployment:
         }
     )
     print("Deployment ID: " + deploy_response["deploymentId"])
-    waiter = codedeploy_svc.get_waiter('deployment_successful')
+    waiter = code_deploy_svc.get_waiter('deployment_successful')
     waiter.wait(
         deploymentId=deploy_response["deploymentId"],
         WaiterConfig={
