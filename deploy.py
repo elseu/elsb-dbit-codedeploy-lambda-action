@@ -33,7 +33,7 @@ def get_latest_version_number(my_function_name, sha256, already_published=False)
             if version_id == "$LATEST":
                 version_id = 1
             latest_version = version_id
-            layers_list = get_layers_list_str(publish_version_response["Layers"])
+            layers_list = get_layers_list(publish_version_response["Layers"])
         except lambda_svc.exceptions.ClientError as e:
             raise e
     else:
@@ -46,7 +46,7 @@ def get_latest_version_number(my_function_name, sha256, already_published=False)
                 last_matching_version = version["Version"]
                 print("Found matching version: " + version["Version"])
                 if "Layers" in version:
-                    layers_list = get_layers_list_str(version["Layers"])
+                    layers_list = get_layers_list(version["Layers"])
         if last_matching_version:
             print("Last matching version: " + last_matching_version)
             latest_version = last_matching_version
@@ -64,23 +64,11 @@ def get_latest_version_number(my_function_name, sha256, already_published=False)
     return latest_version, layers_list
 
 
-def list_to_csv(my_list):
-    new_list = []
-    for item in my_list:
-        parsed_item = item.strip()
-        parsed_item = parsed_item.strip('"')
-        parsed_item = parsed_item.strip("'")
-        parsed_item = "'" + parsed_item + "'"
-
-        new_list.append(parsed_item)
-    return ','.join(new_list)
-
-
-def get_layers_list_str(layer_configuration):
+def get_layers_list(layer_configuration):
     layer_list = []
     for layer in layer_configuration:
         layer_list.append(layer["Arn"])
-    return list_to_csv(layer_list)
+    return layer_list
 
 
 def get_env_var(var_name, required):
@@ -122,7 +110,7 @@ try:
                                                                            Qualifier=current_function_version)
     current_function_sha256 = current_configuration_response['CodeSha256']
     if "Layers" in current_configuration_response:
-        current_layers_list = get_layers_list_str(current_configuration_response["Layers"])
+        current_layers_list = get_layers_list(current_configuration_response["Layers"])
 
 except lambda_svc.exceptions.ClientError as error:
     # The requested alias doesn't exists yet
