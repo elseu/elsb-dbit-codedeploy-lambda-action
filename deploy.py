@@ -184,7 +184,7 @@ if layer4_arn != "":
     new_layers_list.append(layer4_arn)
 
 print("Previous layers list: " + ','.join(current_layers_list))
-print("New layers list: " + ','.join(new_layers_list))
+print("New layers list: " + ','.join(filter(None, new_layers_list)))
 
 # The lists order is important
 if current_layers_list != new_layers_list:
