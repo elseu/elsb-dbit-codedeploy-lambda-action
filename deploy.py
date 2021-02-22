@@ -64,6 +64,13 @@ def get_latest_version_number(my_function_name, sha256, already_published=False)
     return latest_version, layers_list
 
 
+def strip_quotes(item):
+    parsed_item = item.strip()
+    parsed_item = parsed_item.strip('"')
+    parsed_item = parsed_item.strip("'")
+    return parsed_item
+
+
 def get_layers_list(layer_configuration):
     layer_list = []
     for layer in layer_configuration:
@@ -174,17 +181,17 @@ if current_function_version != new_function_version:
 print("Checking the function layers")
 # Manage layers
 
-if layer1_arn != "":
-    new_layers_list.append(layer1_arn)
-if layer2_arn != "":
-    new_layers_list.append(layer2_arn)
-if layer3_arn != "":
-    new_layers_list.append(layer3_arn)
-if layer4_arn != "":
-    new_layers_list.append(layer4_arn)
+if layer1_arn:
+    new_layers_list.append(strip_quotes(layer1_arn))
+if layer2_arn:
+    new_layers_list.append(strip_quotes(layer2_arn))
+if layer3_arn:
+    new_layers_list.append(strip_quotes(layer3_arn))
+if layer4_arn:
+    new_layers_list.append(strip_quotes(layer4_arn))
 
 print("Previous layers list: " + ','.join(current_layers_list))
-print("New layers list: " + ','.join(filter(None, new_layers_list)))
+print("New layers list: " + ','.join(new_layers_list))
 
 # The lists order is important
 if current_layers_list != new_layers_list:
