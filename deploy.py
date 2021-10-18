@@ -112,13 +112,6 @@ try:
         FunctionName=function_name,
         Name=input_alias
     )
-    current_function_version = alias_response['FunctionVersion']
-    current_configuration_response = lambda_svc.get_function_configuration(FunctionName=function_name,
-                                                                           Qualifier=current_function_version)
-    current_function_sha256 = current_configuration_response['CodeSha256']
-    if "Layers" in current_configuration_response:
-        current_layers_list = get_layers_list(current_configuration_response["Layers"])
-
 except lambda_svc.exceptions.ClientError as error:
     # The requested alias doesn't exists yet
     if error.response['Error']['Code'] == 'ResourceNotFoundException':
@@ -148,6 +141,17 @@ except lambda_svc.exceptions.ClientError as error:
 
     else:
         raise error
+else:
+    current_function_version = alias_response['FunctionVersion']
+    try:
+        current_configuration_response = lambda_svc.get_function_configuration(FunctionName=function_name,
+                                                                               Qualifier=current_function_version)
+    except lambda_svc.exceptions.ClientError as error:
+        raise error
+    else:
+        current_function_sha256 = current_configuration_response['CodeSha256']
+        if "Layers" in current_configuration_response:
+            current_layers_list = get_layers_list(current_configuration_response["Layers"])
 
 print("Current version: " + current_function_version)
 print("Current SHA256: " + current_function_sha256)
