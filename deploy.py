@@ -167,11 +167,10 @@ try:
         S3Key=package_s3_key,
         Publish=True
     )
-    print('DEBUG : Update Response 2:')
-    print(update_response)
-    update_status = update_response["LastUpdateStatus"]
-    if update_status == "Failed":
-        raise RuntimeError("Function update failed: " + update_status)
+    if "LastUpdateStatus" in update_response:
+        update_status = update_response["LastUpdateStatus"]
+        if update_status == "Failed":
+            raise RuntimeError("Function update failed: " + update_status)
 
 except lambda_svc.exceptions.ClientError as error:
     raise error
@@ -206,15 +205,13 @@ if current_layers_list != new_layers_list:
     print("Updating the function layers")
     try:
         update_response = lambda_svc.update_function_configuration(FunctionName=function_name, Layers=new_layers_list)
-        print('DEBUG : Update Response 1:')
-        print(update_response)
-        update_status = update_response["LastUpdateStatus"]
-        if update_status == "Failed":
-            raise RuntimeError("Function update failed: " + update_status)
-        else:
-            new_function_version, new_layers_list = get_latest_version_number(function_name,
-                                                                              update_response["CodeSha256"])
-            print("New version: " + new_function_version)
+        if "LastUpdateStatus" in update_response:
+            update_status = update_response["LastUpdateStatus"]
+            if update_status == "Failed":
+                raise RuntimeError("Function update failed: " + update_status)
+        new_function_version, new_layers_list = get_latest_version_number(function_name,
+                                                                          update_response["CodeSha256"])
+        print("New version: " + new_function_version)
 
     except lambda_svc.exceptions.ClientError as error:
         raise error
