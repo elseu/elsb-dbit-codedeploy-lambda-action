@@ -33,7 +33,8 @@ def get_latest_version_number(my_function_name, sha256, already_published=False)
             if version_id == "$LATEST":
                 version_id = 1
             latest_version = version_id
-            layers_list = get_layers_list(publish_version_response["Layers"])
+            if "Layers" in publish_version_response:
+                layers_list = get_layers_list(publish_version_response["Layers"])
         except lambda_svc.exceptions.ClientError as e:
             raise e
     else:
